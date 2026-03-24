@@ -1,0 +1,37 @@
+version: 2
+
+sources:
+  - name: silver
+    schema: main
+    tables:
+      - name: silver_orders
+        columns:
+          - name: order_id
+            tests:
+              - not_null
+              - unique
+          - name: customer_id
+            tests:
+              - not_null
+          - name: status
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['delivered', 'shipped', 'returned', 'pending']
+          - name: total_amount
+            tests:
+              - not_null
+          - name: category
+            tests:
+              - not_null
+              - accepted_values:
+                  values:
+                    - 'Electronics'
+                    - 'Fashion'
+                    - 'Home & Garden'
+                    - 'Sports'
+                    - 'Books'
+                    - 'Beauty'
+                    - 'Toys'
+                    - 'Food & Beverage'
+                    - 'Automotive'

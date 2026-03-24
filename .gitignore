@@ -1,0 +1,37 @@
+# Database files
+*.db
+*.duckdb
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Virtual environments
+venv/
+.env
+.env/
+env/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# dbt
+dbt_project/target/
+dbt_project/.user.yml
+dbt_project/dbt_packages/
+
+# Logs
+*.log
+airflow/logs/
+
+# Dist / build
+dist/
+build/
+*.egg-info/
+dbt_project/logs/

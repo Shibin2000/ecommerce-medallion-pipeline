@@ -1,0 +1,82 @@
+version: 2
+
+models:
+  - name: stg_orders
+    columns:
+      - name: order_sk
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        tests:
+          - not_null
+      - name: total_amount
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - accepted_values:
+              values: ['delivered', 'shipped', 'returned', 'pending']
+
+  - name: mart_daily_sales
+    columns:
+      - name: sale_date
+        tests:
+          - not_null
+          - unique
+      - name: total_revenue
+        tests:
+          - not_null
+      - name: total_orders
+        tests:
+          - not_null
+
+  - name: mart_category_metrics
+    columns:
+      - name: category
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              values:
+                - 'Electronics'
+                - 'Fashion'
+                - 'Home & Garden'
+                - 'Sports'
+                - 'Books'
+                - 'Beauty'
+                - 'Toys'
+                - 'Food & Beverage'
+                - 'Automotive'
+      - name: total_revenue
+        tests:
+          - not_null
+
+  - name: mart_customer_segments
+    columns:
+      - name: customer_id
+        tests:
+          - not_null
+          - unique
+      - name: customer_segment
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['VIP', 'Premium', 'Regular', 'New']
+      - name: monetary
+        tests:
+          - not_null
+
+  - name: mart_city_metrics
+    columns:
+      - name: city
+        tests:
+          - not_null
+          - unique
+      - name: total_revenue
+        tests:
+          - not_null

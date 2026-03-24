@@ -1,0 +1,7 @@
+ecommerce_medallion:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../ecommerce_lakehouse.db"
+      threads: 4
