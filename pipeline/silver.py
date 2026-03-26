@@ -17,7 +17,7 @@ def run_silver(db_path="ecommerce_lakehouse.db"):
     original_count = len(df)
 
     # drop bad rows
-    # originally also dropped 'pending' but that removed too much data
+    # tried filtering only delivered+shipped but removed too much, keeping pending
     # df = df[df['status'].isin(['delivered', 'shipped'])]  # too aggressive
     df = df[df['unit_price'] > 0]
     df = df[df['quantity'] > 0]
@@ -63,4 +63,5 @@ def run_silver(db_path="ecommerce_lakehouse.db"):
 
 if __name__ == "__main__":
     run_silver()
+
 
