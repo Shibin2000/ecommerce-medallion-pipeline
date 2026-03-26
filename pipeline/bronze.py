@@ -42,8 +42,7 @@ def generate_bronze(db_path="ecommerce_lakehouse.db", n=100_000, incremental=Tru
     })
 
     # duckdb doesnt like plain python str columns
-    # tried using polars for this at first but kept getting arrow conversion errors
-    # pandas StringDtype is annoying but it works, need to cast explicitly
+    # tried polars first but arrow conversion errors, pandas StringDtype works fine, need to cast explicitly
     # spent like an hour debugging this before i figured it out
     str_cols = ['order_id', 'customer_id', 'product_id', 'category',
                 'payment_method', 'city', 'status', 'return_reason']
@@ -81,4 +80,5 @@ def generate_bronze(db_path="ecommerce_lakehouse.db", n=100_000, incremental=Tru
 
 if __name__ == "__main__":
     generate_bronze()
+
 
