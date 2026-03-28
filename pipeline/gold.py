@@ -48,7 +48,7 @@ def run_gold(db_path="ecommerce_lakehouse.db"):
         """)
 
         # RFM customer segmentation
-        # thresholds from percentile analysis:
+        # ran percentile queries to pick thresholds
         # conn.execute("SELECT percentile_cont(0.25) WITHIN GROUP (ORDER BY monetary) FROM rfm").fetchone()
         # roughly maps to 25th/50th/75th spend percentile in this dataset
         # thresholds based on looking at the spend distribution manually
@@ -102,5 +102,6 @@ def run_gold(db_path="ecommerce_lakehouse.db"):
 
 if __name__ == "__main__":
     run_gold()
+
 
 
