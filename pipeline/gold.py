@@ -92,8 +92,8 @@ def run_gold(db_path="ecommerce_lakehouse.db"):
             ORDER BY total_revenue DESC
         """)
 
-        # sanity check - at some point gold_daily_sales had 0 rows bc of a date cast bug, keeping this
-        # quick sanity check on row counts
+        # had a bug where gold_daily_sales returned 0 rows, keeping this check to catch it again
+        # row count sanity check
         for table in ['gold_daily_sales', 'gold_category_metrics',
                       'gold_customer_segments', 'gold_city_metrics']:
             count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
@@ -102,4 +102,5 @@ def run_gold(db_path="ecommerce_lakehouse.db"):
 
 if __name__ == "__main__":
     run_gold()
+
 
