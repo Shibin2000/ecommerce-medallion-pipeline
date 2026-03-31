@@ -5,7 +5,7 @@ import subprocess
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'pipeline'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'pipeline'))  # took a while to figure this out
 
 from bronze import generate_bronze
 from silver import run_silver
@@ -85,3 +85,4 @@ with DAG(
     )
 
     t_bronze >> t_silver >> t_gold >> t_dbt_run >> t_dbt_test >> t_checks
+
