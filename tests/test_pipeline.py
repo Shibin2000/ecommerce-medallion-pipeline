@@ -1,4 +1,4 @@
-import pytest  # first time using pytest, had to read the docs
+import pytest
 import duckdb
 import sys
 import os
@@ -76,4 +76,5 @@ def test_gold_revenue():
     with duckdb.connect(DB) as conn:
         total = conn.execute("SELECT SUM(total_revenue) FROM gold_category_metrics").fetchone()[0]
     assert total > 0
+
 
