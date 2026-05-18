@@ -5,14 +5,13 @@ import subprocess
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'pipeline'))  # took a while to figure this out
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'pipeline'))
 
 from bronze import generate_bronze
 from silver import run_silver
 from gold import run_gold
 from quality_checks import run_checks
 
-DB_PATH = os.environ.get("DB_PATH", "/opt/airflow/data/ecommerce_lakehouse.db")
 DBT_DIR = os.path.join(os.path.dirname(__file__), '..', 'dbt_project')
 
 default_args = {
@@ -40,30 +39,27 @@ def run_dbt(command):
 
 with DAG(
     dag_id='ecommerce_medallion_pipeline',
-    description='bronze to gold pipeline for ecommerce orders',
+    description='bronze to gold pipeline for ecommerce orders - snowflake',
     schedule_interval='@daily',
     start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
     catchup=False,
     default_args=default_args,
-    tags=['ecommerce', 'duckdb'],
+    tags=['ecommerce', 'snowflake'],
 ) as dag:
 
     t_bronze = PythonOperator(
         task_id='bronze_load',
         python_callable=generate_bronze,
-        op_kwargs={'db_path': DB_PATH},
     )
 
     t_silver = PythonOperator(
         task_id='silver_clean',
         python_callable=run_silver,
-        op_kwargs={'db_path': DB_PATH},
     )
 
     t_gold = PythonOperator(
         task_id='gold_aggregate',
         python_callable=run_gold,
-        op_kwargs={'db_path': DB_PATH},
     )
 
     t_dbt_run = PythonOperator(
@@ -81,8 +77,6 @@ with DAG(
     t_checks = PythonOperator(
         task_id='quality_checks',
         python_callable=run_checks,
-        op_kwargs={'db_path': DB_PATH},
     )
 
     t_bronze >> t_silver >> t_gold >> t_dbt_run >> t_dbt_test >> t_checks
-
