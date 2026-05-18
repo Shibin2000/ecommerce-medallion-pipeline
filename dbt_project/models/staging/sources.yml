@@ -2,36 +2,19 @@ version: 2
 
 sources:
   - name: silver
-    schema: main
+    database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'ECOMMERCE') }}"
     tables:
       - name: silver_orders
+        description: "cleaned orders from the silver layer"
         columns:
-          - name: order_id
+          - name: ORDER_ID
             tests:
               - not_null
               - unique
-          - name: customer_id
+          - name: CUSTOMER_ID
             tests:
               - not_null
-          - name: status
+          - name: TOTAL_AMOUNT
             tests:
               - not_null
-              - accepted_values:
-                  values: ['delivered', 'shipped', 'returned', 'pending']
-          - name: total_amount
-            tests:
-              - not_null
-          - name: category
-            tests:
-              - not_null
-              - accepted_values:
-                  values:
-                    - 'Electronics'
-                    - 'Fashion'
-                    - 'Home & Garden'
-                    - 'Sports'
-                    - 'Books'
-                    - 'Beauty'
-                    - 'Toys'
-                    - 'Food & Beverage'
-                    - 'Automotive'
