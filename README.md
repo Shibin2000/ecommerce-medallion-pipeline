@@ -1,6 +1,8 @@
 # ecommerce-medallion-pipeline
 
-End-to-end data pipeline that moves 100k synthetic ecommerce orders through bronze → silver → gold. Built this to get hands-on with the patterns I keep seeing in data engineering job descriptions — incremental loading, dbt, Airflow, data quality checks.
+End-to-end data pipeline that moves 100k synthetic ecommerce orders through bronze -> silver -> gold. Built this to get hands-on with the patterns I keep seeing in data engineering job descriptions -- incremental loading, dbt, Airflow, data quality checks.
+
+Migrated from DuckDB to Snowflake as the warehouse layer. The local DuckDB setup was fine for getting things working but wanted to push it to a cloud warehouse since that's what most job specs actually ask for.
 
 ---
 
@@ -10,13 +12,13 @@ Raw orders come in with intentional problems: negative prices, missing return re
 
 ```
 bronze_orders (100k raw rows)
-       ↓  filter + enrich
+       |  filter + enrich
 silver_orders (~80k clean rows)
-       ↓  dbt models
-mart_daily_sales        → revenue KPIs by day
-mart_category_metrics   → performance by product category
-mart_customer_segments  → RFM: VIP / Premium / Regular / New
-mart_city_metrics       → orders and revenue by city
+       |  dbt models
+mart_daily_sales        -> revenue KPIs by day
+mart_category_metrics   -> performance by product category
+mart_customer_segments  -> RFM: VIP / Premium / Regular / New
+mart_city_metrics       -> orders and revenue by city
 ```
 
 The dbt layer re-models the gold logic as proper mart tables with schema tests baked in, so if the upstream silver data changes, the tests will catch it.
@@ -25,13 +27,13 @@ The dbt layer re-models the gold logic as proper mart tables with schema tests b
 
 ## stack
 
-- **DuckDB** — local SQL warehouse, no server to manage
-- **pandas** — data generation and silver transforms
-- **dbt-duckdb** — mart models + schema tests
-- **Apache Airflow** — daily DAG with retries
-- **PySpark** — ran some of the analysis queries on silver to compare results
-- **pytest** — 9 tests covering the full pipeline from bronze through gold
-- **Plotly** — charts saved to images/
+- **Snowflake** -- cloud warehouse, replaced DuckDB
+- **pandas** -- data generation and silver transforms
+- **dbt-snowflake** -- mart models + schema tests
+- **Apache Airflow** -- daily DAG with retries
+- **PySpark** -- ran some of the analysis queries on silver to compare results
+- **pytest** -- 9 tests covering the full pipeline from bronze through gold
+- **Plotly** -- charts saved to images/
 
 ---
 
@@ -48,21 +50,47 @@ The dbt layer re-models the gold logic as proper mart tables with schema tests b
 
 ```
 ecommerce-medallion-pipeline/
-├── pipeline/
-│   ├── bronze.py           # synthetic data gen → DuckDB
-│   ├── silver.py           # cleaning, revenue calcs, date features
-│   ├── gold.py             # 4 aggregated tables
-│   ├── quality_checks.py   # basic assertions after each run
-│   └── run_pipeline.py     # runs all 4 steps in order
-├── dbt_project/
-│   ├── models/staging/     # stg_orders view on top of silver
-│   └── models/marts/       # mart_daily_sales, mart_category_metrics,
-│                           # mart_customer_segments, mart_city_metrics
-├── dags/
-│   └── ecommerce_dag.py    # Airflow DAG, runs daily
-├── tests/
-│   └── test_pipeline.py    # pytest, uses a temp test.db
-└── images/
+|-- pipeline/
+|   |-- snowflake_conn.py   # connection helper, reads creds from env
+|   |-- bronze.py           # synthetic data gen -> Snowflake
+|   |-- silver.py           # cleaning, revenue calcs, date features
+|   |-- gold.py             # 4 aggregated tables
+|   |-- quality_checks.py   # basic assertions after each run
+|   `-- run_pipeline.py     # runs all 4 steps in order
+|-- dbt_project/
+|   |-- models/staging/     # stg_orders view on top of silver
+|   `-- models/marts/       # mart_daily_sales, mart_category_metrics,
+|                           # mart_customer_segments, mart_city_metrics
+|-- dags/
+|   `-- ecommerce_dag.py    # Airflow DAG, runs daily
+|-- tests/
+|   `-- test_pipeline.py    # pytest, uses a separate ECOMMERCE_TEST schema
+`-- images/
+```
+
+---
+
+## setup
+
+Copy `.env.example` to `.env` and fill in your Snowflake credentials.
+
+```bash
+git clone https://github.com/Shibin2000/ecommerce-medallion-pipeline
+cd ecommerce-medallion-pipeline
+pip install -r requirements.txt
+
+# run the full pipeline
+cd pipeline
+python run_pipeline.py
+
+# dbt models and tests
+cd ../dbt_project
+dbt run --profiles-dir .
+dbt test --profiles-dir .
+
+# pytest - set SNOWFLAKE_SCHEMA=ECOMMERCE_TEST in .env first
+cd ..
+pytest tests/test_pipeline.py -v
 ```
 
 ---
@@ -80,33 +108,10 @@ ecommerce-medallion-pipeline/
 
 ---
 
-## how to run
-
-```bash
-git clone https://github.com/Shibin2000/ecommerce-medallion-pipeline
-cd ecommerce-medallion-pipeline
-pip install -r requirements.txt
-
-# run the full pipeline
-cd pipeline
-python run_pipeline.py
-
-# dbt models and tests
-cd ../dbt_project
-dbt run --profiles-dir .
-dbt test --profiles-dir .
-
-# pytest
-cd ..
-pytest tests/test_pipeline.py -v
-```
-
----
-
 ## notes
 
-**incremental loading** — bronze only appends rows where `order_date > MAX(order_date)` already in the table. Took a bit of fiddling to get the DuckDB date comparison working correctly when the table was empty on first run.
+**incremental loading** -- bronze only appends rows where `order_date > MAX(order_date)` already in the table. The `write_pandas` call needs `quote_identifiers=False` or Snowflake treats column names as case-sensitive lowercase and the insert fails against the uppercase table columns. Took a while to track down.
 
-**RFM thresholds** — the $500/$1000/$2000 cutoffs are based on eyeballing the spend distribution. In a real project these would probably be percentile-based.
+**RFM thresholds** -- the $500/$1000/$2000 cutoffs are based on eyeballing the spend distribution. In a real project these would probably be percentile-based.
 
-**dbt on DuckDB** — the `profiles.yml` points to the local `.db` file. If you move the db file, update the path in `dbt_project/profiles.yml`.
+**dbt on Snowflake** -- profiles.yml reads creds from env vars via `env_var()`. One syntax difference from DuckDB: `date_diff('day', ...)` doesn't exist in Snowflake, it's `DATEDIFF('day', start, end)` and the arg order is flipped.
