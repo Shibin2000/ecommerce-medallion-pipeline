@@ -11,17 +11,15 @@ from quality_checks import run_checks
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
-DB = os.environ.get("DB_PATH", "ecommerce_lakehouse.db")
-
 
 def main():
     logging.info("starting pipeline")
 
-    generate_bronze(db_path=DB)
-    run_silver(db_path=DB)
-    run_gold(db_path=DB)
+    generate_bronze()
+    run_silver()
+    run_gold()
 
-    ok = run_checks(db_path=DB)
+    ok = run_checks()
     if not ok:
         logging.error("quality checks failed")
         sys.exit(1)
