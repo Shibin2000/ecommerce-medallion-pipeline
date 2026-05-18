@@ -1,107 +1,102 @@
-import duckdb
+from snowflake_conn import get_connection
 
 
-def run_gold(db_path="ecommerce_lakehouse.db"):
+def run_gold():
 
-    with duckdb.connect(db_path) as conn:
+    conn = get_connection()
+    cur = conn.cursor()
 
-        # daily sales rollup
-        conn.execute("DROP TABLE IF EXISTS gold_daily_sales")
-        conn.execute("""
-            CREATE TABLE gold_daily_sales AS
+    # daily sales rollup
+    cur.execute("DROP TABLE IF EXISTS GOLD_DAILY_SALES")
+    cur.execute("""
+        CREATE TABLE GOLD_DAILY_SALES AS
+        SELECT
+            ORDER_DATE::date as SALE_DATE,
+            ORDER_YEAR,
+            ORDER_MONTH,
+            ORDER_QUARTER,
+            COUNT(*) as TOTAL_ORDERS,
+            COUNT(DISTINCT CUSTOMER_ID) as UNIQUE_CUSTOMERS,
+            SUM(QUANTITY) as TOTAL_ITEMS_SOLD,
+            ROUND(SUM(GROSS_AMOUNT), 2) as GROSS_REVENUE,
+            ROUND(SUM(DISCOUNT_AMOUNT), 2) as TOTAL_DISCOUNTS,
+            ROUND(SUM(NET_AMOUNT), 2) as NET_REVENUE,
+            ROUND(SUM(TOTAL_AMOUNT), 2) as TOTAL_REVENUE,
+            ROUND(AVG(TOTAL_AMOUNT), 2) as AVG_ORDER_VALUE,
+            SUM(CASE WHEN IS_RETURNED THEN 1 ELSE 0 END) as RETURNS
+        FROM SILVER_ORDERS
+        GROUP BY ORDER_DATE::date, ORDER_YEAR, ORDER_MONTH, ORDER_QUARTER
+        ORDER BY SALE_DATE
+    """)
+
+    cur.execute("DROP TABLE IF EXISTS GOLD_CATEGORY_METRICS")
+    cur.execute("""
+        CREATE TABLE GOLD_CATEGORY_METRICS AS
+        SELECT
+            CATEGORY,
+            COUNT(*) as TOTAL_ORDERS,
+            ROUND(SUM(TOTAL_AMOUNT), 2) as TOTAL_REVENUE,
+            ROUND(AVG(TOTAL_AMOUNT), 2) as AVG_ORDER_VALUE,
+            ROUND(AVG(CUSTOMER_RATING), 2) as AVG_RATING,
+            ROUND(AVG(DISCOUNT_PCT), 2) as AVG_DISCOUNT_PCT,
+            ROUND(
+                SUM(CASE WHEN IS_RETURNED THEN 1 ELSE 0 END) * 100.0 / COUNT(*),
+            2) as RETURN_RATE_PCT
+        FROM SILVER_ORDERS
+        GROUP BY CATEGORY
+        ORDER BY TOTAL_REVENUE DESC
+    """)
+
+    # note: snowflake doesn't have date_diff() - it's DATEDIFF(unit, start, end)
+    # the arg order is also flipped from duckdb, caught that bug on first run
+    cur.execute("DROP TABLE IF EXISTS GOLD_CUSTOMER_SEGMENTS")
+    cur.execute("""
+        CREATE TABLE GOLD_CUSTOMER_SEGMENTS AS
+        WITH rfm AS (
             SELECT
-                order_date::date as sale_date,
-                order_year,
-                order_month,
-                order_quarter,
-                count(*) as total_orders,
-                count(distinct customer_id) as unique_customers,
-                sum(quantity) as total_items_sold,
-                round(sum(gross_amount), 2) as gross_revenue,
-                round(sum(discount_amount), 2) as total_discounts,
-                round(sum(net_amount), 2) as net_revenue,
-                round(sum(total_amount), 2) as total_revenue,
-                round(avg(total_amount), 2) as avg_order_value,
-                sum(case when is_returned then 1 else 0 end) as returns
-            FROM silver_orders
-            GROUP BY order_date::date, order_year, order_month, order_quarter
-            ORDER BY sale_date
-        """)
+                CUSTOMER_ID,
+                COUNT(*) as FREQUENCY,
+                ROUND(SUM(TOTAL_AMOUNT), 2) as MONETARY,
+                DATEDIFF('day', MAX(ORDER_DATE::date), CURRENT_DATE) as RECENCY_DAYS,
+                MIN(ORDER_DATE::date) as FIRST_ORDER,
+                MAX(ORDER_DATE::date) as LAST_ORDER
+            FROM SILVER_ORDERS
+            GROUP BY CUSTOMER_ID
+        )
+        SELECT *,
+            CASE
+                WHEN MONETARY > 2000 AND FREQUENCY >= 5 THEN 'VIP'
+                WHEN MONETARY > 1000 AND FREQUENCY >= 3 THEN 'Premium'
+                WHEN MONETARY > 500 THEN 'Regular'
+                ELSE 'New'
+            END AS CUSTOMER_SEGMENT
+        FROM rfm
+        ORDER BY MONETARY DESC
+    """)
 
-        # category level metrics
-        conn.execute("DROP TABLE IF EXISTS gold_category_metrics")
-        conn.execute("""
-            CREATE TABLE gold_category_metrics AS
-            SELECT
-                category,
-                count(*) as total_orders,
-                round(sum(total_amount), 2) as total_revenue,
-                round(avg(total_amount), 2) as avg_order_value,
-                round(avg(customer_rating), 2) as avg_rating,
-                round(avg(discount_pct), 2) as avg_discount_pct,
-                round(
-                    sum(case when is_returned then 1 else 0 end) * 100.0 / count(*),
-                2) as return_rate_pct
-            FROM silver_orders
-            GROUP BY category
-            ORDER BY total_revenue DESC
-        """)
+    cur.execute("DROP TABLE IF EXISTS GOLD_CITY_METRICS")
+    cur.execute("""
+        CREATE TABLE GOLD_CITY_METRICS AS
+        SELECT
+            CITY,
+            COUNT(*) as TOTAL_ORDERS,
+            ROUND(SUM(TOTAL_AMOUNT), 2) as TOTAL_REVENUE,
+            ROUND(AVG(TOTAL_AMOUNT), 2) as AVG_ORDER_VALUE,
+            COUNT(DISTINCT CUSTOMER_ID) as UNIQUE_CUSTOMERS
+        FROM SILVER_ORDERS
+        GROUP BY CITY
+        ORDER BY TOTAL_REVENUE DESC
+    """)
 
-        # RFM customer segmentation
-        # ran percentile queries to pick thresholds
-        # conn.execute("SELECT percentile_cont(0.25) WITHIN GROUP (ORDER BY monetary) FROM rfm").fetchone()
-        # roughly maps to 25th/50th/75th spend percentile in this dataset
-        # thresholds based on looking at the spend distribution manually
-        # $500 / $1000 / $2000 roughly splits the customers into 4 groups
-        conn.execute("DROP TABLE IF EXISTS gold_customer_segments")
-        conn.execute("""
-            CREATE TABLE gold_customer_segments AS
-            WITH rfm AS (
-                SELECT
-                    customer_id,
-                    count(*) as frequency,
-                    round(sum(total_amount), 2) as monetary,
-                    date_diff('day', max(order_date::date), current_date) as recency_days,
-                    min(order_date::date) as first_order,
-                    max(order_date::date) as last_order
-                FROM silver_orders
-                GROUP BY customer_id
-            )
-            SELECT *,
-                CASE
-                    WHEN monetary > 2000 AND frequency >= 5 THEN 'VIP'
-                    WHEN monetary > 1000 AND frequency >= 3 THEN 'Premium'
-                    WHEN monetary > 500 THEN 'Regular'
-                    ELSE 'New'
-                END AS customer_segment
-            FROM rfm
-            ORDER BY monetary DESC
-        """)
+    # sanity check - had a bug where gold_daily_sales came back empty, keeping this
+    for table in ['GOLD_DAILY_SALES', 'GOLD_CATEGORY_METRICS',
+                  'GOLD_CUSTOMER_SEGMENTS', 'GOLD_CITY_METRICS']:
+        count = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        print(f"  {table}: {count} rows")
 
-        conn.execute("DROP TABLE IF EXISTS gold_city_metrics")
-        conn.execute("""
-            CREATE TABLE gold_city_metrics AS
-            SELECT
-                city,
-                count(*) as total_orders,
-                round(sum(total_amount), 2) as total_revenue,
-                round(avg(total_amount), 2) as avg_order_value,
-                count(distinct customer_id) as unique_customers
-            FROM silver_orders
-            GROUP BY city
-            ORDER BY total_revenue DESC
-        """)
-
-        # had a bug where gold_daily_sales returned 0 rows, keeping this check to catch it again
-        # row count sanity check
-        for table in ['gold_daily_sales', 'gold_category_metrics',
-                      'gold_customer_segments', 'gold_city_metrics']:
-            count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-            print(f"  {table}: {count} rows")
+    cur.close()
+    conn.close()
 
 
 if __name__ == "__main__":
     run_gold()
-
-
-
