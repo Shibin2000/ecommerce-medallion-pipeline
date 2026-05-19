@@ -14,16 +14,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
 def main():
     logging.info("starting pipeline")
-
     generate_bronze()
     run_silver()
     run_gold()
-
     ok = run_checks()
     if not ok:
         logging.error("quality checks failed")
         sys.exit(1)
-
     logging.info("pipeline done")
 
 
