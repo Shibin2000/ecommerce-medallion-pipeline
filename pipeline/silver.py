@@ -36,7 +36,10 @@ def run_silver():
     df['IS_WEEKEND']     = df['ORDER_DAY_NAME'].isin(['Saturday', 'Sunday'])
     df['IS_RETURNED']    = df['STATUS'] == 'returned'
 
-    cur.execute("DROP TABLE IF EXISTS SILVER_ORDERS")
+    # full reload on silver every run - bronze handles the incremental logic
+    # silver is a transformation layer so we always reprocess from the full bronze table
+    # kept it simple for now, could add MERGE-based incremental later if bronze gets huge
+    cur.execute("TRUNCATE TABLE IF EXISTS SILVER_ORDERS")
 
     # write_pandas needs quote_identifiers=False here too, same reason as bronze
     write_pandas(conn, df, 'SILVER_ORDERS', auto_create_table=True, quote_identifiers=False)
