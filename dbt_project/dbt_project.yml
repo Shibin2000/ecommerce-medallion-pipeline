@@ -5,7 +5,7 @@ config-version: 2
 profile: 'ecommerce_medallion'
 
 model-paths: ["models"]
-test-paths:  ["tests"]
+test-paths:  ["dbt_tests"]
 macro-paths: ["macros"]
 
 target-path: "target"
@@ -17,5 +17,3 @@ models:
       +materialized: view
     marts:
       +materialized: table
-
-
