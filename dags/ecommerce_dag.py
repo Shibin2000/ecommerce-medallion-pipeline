@@ -47,36 +47,13 @@ with DAG(
     tags=['ecommerce', 'snowflake'],
 ) as dag:
 
-    t_bronze = PythonOperator(
-        task_id='bronze_load',
-        python_callable=generate_bronze,
-    )
+    t_bronze = PythonOperator(task_id='bronze_load',    python_callable=generate_bronze)
+    t_silver = PythonOperator(task_id='silver_clean',   python_callable=run_silver)
+    t_gold   = PythonOperator(task_id='gold_aggregate', python_callable=run_gold)
 
-    t_silver = PythonOperator(
-        task_id='silver_clean',
-        python_callable=run_silver,
-    )
+    t_dbt_run  = PythonOperator(task_id='dbt_run',  python_callable=run_dbt, op_kwargs={'command': 'run'})
+    t_dbt_test = PythonOperator(task_id='dbt_test', python_callable=run_dbt, op_kwargs={'command': 'test'})
 
-    t_gold = PythonOperator(
-        task_id='gold_aggregate',
-        python_callable=run_gold,
-    )
-
-    t_dbt_run = PythonOperator(
-        task_id='dbt_run',
-        python_callable=run_dbt,
-        op_kwargs={'command': 'run'},
-    )
-
-    t_dbt_test = PythonOperator(
-        task_id='dbt_test',
-        python_callable=run_dbt,
-        op_kwargs={'command': 'test'},
-    )
-
-    t_checks = PythonOperator(
-        task_id='quality_checks',
-        python_callable=run_checks,
-    )
+    t_checks = PythonOperator(task_id='quality_checks', python_callable=run_checks)
 
     t_bronze >> t_silver >> t_gold >> t_dbt_run >> t_dbt_test >> t_checks
