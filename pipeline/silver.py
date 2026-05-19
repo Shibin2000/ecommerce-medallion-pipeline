@@ -14,7 +14,6 @@ def run_silver():
     df = cur.fetch_pandas_all()
 
     print(f"loaded {len(df)} rows from bronze")
-
     original_count = len(df)
 
     df = df[df['UNIT_PRICE'] > 0]
@@ -22,23 +21,20 @@ def run_silver():
     df = df[df['STATUS'] != 'cancelled']
 
     df['ORDER_DATE'] = pd.to_datetime(df['ORDER_DATE'])
-
     df['CUSTOMER_RATING'] = df['CUSTOMER_RATING'].fillna(0).astype(float)
     df['RETURN_REASON'] = df['RETURN_REASON'].fillna('No Return')
 
-    # revenue calcs
-    df['GROSS_AMOUNT'] = (df['UNIT_PRICE'] * df['QUANTITY']).round(2)
+    df['GROSS_AMOUNT']    = (df['UNIT_PRICE'] * df['QUANTITY']).round(2)
     df['DISCOUNT_AMOUNT'] = (df['GROSS_AMOUNT'] * df['DISCOUNT_PCT'] / 100).round(2)
-    df['NET_AMOUNT'] = (df['GROSS_AMOUNT'] - df['DISCOUNT_AMOUNT']).round(2)
-    df['TOTAL_AMOUNT'] = (df['NET_AMOUNT'] + df['SHIPPING_COST']).round(2)
+    df['NET_AMOUNT']      = (df['GROSS_AMOUNT'] - df['DISCOUNT_AMOUNT']).round(2)
+    df['TOTAL_AMOUNT']    = (df['NET_AMOUNT'] + df['SHIPPING_COST']).round(2)
 
-    # date parts
-    df['ORDER_YEAR'] = df['ORDER_DATE'].dt.year
-    df['ORDER_MONTH'] = df['ORDER_DATE'].dt.month
-    df['ORDER_QUARTER'] = df['ORDER_DATE'].dt.quarter
+    df['ORDER_YEAR']     = df['ORDER_DATE'].dt.year
+    df['ORDER_MONTH']    = df['ORDER_DATE'].dt.month
+    df['ORDER_QUARTER']  = df['ORDER_DATE'].dt.quarter
     df['ORDER_DAY_NAME'] = df['ORDER_DATE'].dt.day_name()
-    df['IS_WEEKEND'] = df['ORDER_DAY_NAME'].isin(['Saturday', 'Sunday'])
-    df['IS_RETURNED'] = df['STATUS'] == 'returned'
+    df['IS_WEEKEND']     = df['ORDER_DAY_NAME'].isin(['Saturday', 'Sunday'])
+    df['IS_RETURNED']    = df['STATUS'] == 'returned'
 
     cur.execute("DROP TABLE IF EXISTS SILVER_ORDERS")
 
@@ -51,7 +47,7 @@ def run_silver():
     cur.close()
     conn.close()
 
-    print(f"silver done - kept {final_count} rows, dropped {dropped} ({round(dropped/original_count*100, 1)}%)")
+    print(f"silver done - kept {final_count} rows, dropped {dropped} ({round(dropped/original_count*100,1)}%)")
     return final_count
 
 
