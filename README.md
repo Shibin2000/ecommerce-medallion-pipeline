@@ -21,7 +21,7 @@ mart_customer_segments  -> RFM: VIP / Premium / Regular / New
 mart_city_metrics       -> orders and revenue by city
 ```
 
-The dbt layer re-models the gold logic as proper mart tables with schema tests baked in, so if the upstream silver data changes, the tests will catch it.
+The dbt layer sits on top of silver and produces mart tables with schema tests baked in, so if the upstream data changes shape the tests catch it before anything downstream breaks.
 
 ---
 
@@ -31,8 +31,8 @@ The dbt layer re-models the gold logic as proper mart tables with schema tests b
 - **pandas** -- data generation and silver transforms
 - **dbt-snowflake** -- mart models + schema tests
 - **Apache Airflow** -- daily DAG with retries
-- **PySpark** -- ran some of the analysis queries on silver to compare results
-- **pytest** -- 9 tests covering the full pipeline from bronze through gold
+- **PySpark** -- used for some exploratory queries on silver
+- **pytest** -- 9 tests covering bronze through gold
 - **Plotly** -- charts saved to images/
 
 ---
@@ -40,9 +40,9 @@ The dbt layer re-models the gold logic as proper mart tables with schema tests b
 ## numbers
 
 - 100,000 orders in bronze
-- 80,090 rows survive into silver (dropped ~20k cancelled/bad rows)
+- ~80k rows survive into silver (dropped cancelled + bad data)
 - $55.9M total revenue across 9 product categories
-- 19,584 unique customers segmented by spend
+- 19,584 unique customers segmented into VIP / Premium / Regular / New
 
 ---
 
@@ -51,20 +51,20 @@ The dbt layer re-models the gold logic as proper mart tables with schema tests b
 ```
 ecommerce-medallion-pipeline/
 |-- pipeline/
-|   |-- snowflake_conn.py   # connection helper, reads creds from env
-|   |-- bronze.py           # synthetic data gen -> Snowflake
+|   |-- snowflake_conn.py   # connection helper, reads from .env
+|   |-- bronze.py           # synthetic data gen -> BRONZE_ORDERS
 |   |-- silver.py           # cleaning, revenue calcs, date features
-|   |-- gold.py             # 4 aggregated tables
-|   |-- quality_checks.py   # basic assertions after each run
-|   `-- run_pipeline.py     # runs all 4 steps in order
+|   |-- gold.py             # 4 aggregated gold tables
+|   |-- quality_checks.py   # assertions after each run
+|   `-- run_pipeline.py     # runs all steps in order
 |-- dbt_project/
 |   |-- models/staging/     # stg_orders view on top of silver
 |   `-- models/marts/       # mart_daily_sales, mart_category_metrics,
 |                           # mart_customer_segments, mart_city_metrics
 |-- dags/
-|   `-- ecommerce_dag.py    # Airflow DAG, runs daily
+|   `-- ecommerce_dag.py    # Airflow DAG, daily schedule
 |-- tests/
-|   `-- test_pipeline.py    # pytest, uses a separate ECOMMERCE_TEST schema
+|   `-- test_pipeline.py    # pytest against ECOMMERCE_TEST schema
 `-- images/
 ```
 
@@ -72,7 +72,7 @@ ecommerce-medallion-pipeline/
 
 ## setup
 
-Copy `.env.example` to `.env` and fill in your Snowflake credentials.
+Copy `.env.example` to `.env` and fill in your Snowflake creds.
 
 ```bash
 git clone https://github.com/Shibin2000/ecommerce-medallion-pipeline
@@ -83,12 +83,12 @@ pip install -r requirements.txt
 cd pipeline
 python run_pipeline.py
 
-# dbt models and tests
+# dbt
 cd ../dbt_project
 dbt run --profiles-dir .
 dbt test --profiles-dir .
 
-# pytest - set SNOWFLAKE_SCHEMA=ECOMMERCE_TEST in .env first
+# tests -- set SNOWFLAKE_SCHEMA=ECOMMERCE_TEST in .env first
 cd ..
 pytest tests/test_pipeline.py -v
 ```
@@ -103,15 +103,15 @@ pytest tests/test_pipeline.py -v
 **monthly revenue trend**
 ![monthly trend](images/chart_weekly_trend.png)
 
-**customer segment breakdown**
+**customer segments**
 ![customer segments](images/chart_customer_segments.png)
 
 ---
 
 ## notes
 
-**incremental loading** -- bronze only appends rows where `order_date > MAX(order_date)` already in the table. The `write_pandas` call needs `quote_identifiers=False` or Snowflake treats column names as case-sensitive lowercase and the insert fails against the uppercase table columns. Took a while to track down.
+**incremental loading** -- bronze only loads rows where `order_date > MAX(order_date)` already in the table. `write_pandas` needs `quote_identifiers=False` or Snowflake treats column names as case-sensitive lowercase and the insert fails. Took a while to figure out.
 
-**RFM thresholds** -- the $500/$1000/$2000 cutoffs are based on eyeballing the spend distribution. In a real project these would probably be percentile-based.
+**RFM thresholds** -- the $500/$1000/$2000 breakpoints came from eyeballing the spend histogram. In a real project you'd want percentile-based cutoffs.
 
-**dbt on Snowflake** -- profiles.yml reads creds from env vars via `env_var()`. One syntax difference from DuckDB: `date_diff('day', ...)` doesn't exist in Snowflake, it's `DATEDIFF('day', start, end)` and the arg order is flipped.
+**dbt on Snowflake** -- `date_diff('day', ...)` from DuckDB doesn't exist in Snowflake. It's `DATEDIFF('day', start, end)` and the arg order is flipped. Fixed after first run blew up.
