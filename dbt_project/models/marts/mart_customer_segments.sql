@@ -13,13 +13,13 @@ with orders as (
 rfm as (
     select
         customer_id,
-        count(*) as frequency,
-        round(sum(total_amount), 2) as monetary,
-        DATEDIFF('day', max(order_date::date), CURRENT_DATE) as recency_days,
-        min(order_date::date) as first_order_date,
-        max(order_date::date) as last_order_date,
-        round(avg(customer_rating), 2) as avg_rating,
-        count(distinct category) as categories_bought
+        count(*)                                                  as frequency,
+        round(sum(total_amount), 2)                              as monetary,
+        DATEDIFF('day', max(order_date::date), CURRENT_DATE)     as recency_days,
+        min(order_date::date)                                    as first_order_date,
+        max(order_date::date)                                    as last_order_date,
+        round(avg(customer_rating), 2)                           as avg_rating,
+        count(distinct category)                                 as categories_bought
     from orders
     group by customer_id
 )
@@ -29,7 +29,7 @@ select
     case
         when monetary > 2000 and frequency >= 5 then 'VIP'
         when monetary > 1000 and frequency >= 3 then 'Premium'
-        when monetary > 500 then 'Regular'
+        when monetary > 500                     then 'Regular'
         else 'New'
     end as customer_segment
 from rfm
