@@ -53,6 +53,7 @@ def test_silver_positive_totals():
     assert _count("SELECT COUNT(*) FROM SILVER_ORDERS WHERE TOTAL_AMOUNT <= 0") == 0
 
 def test_gold_categories():
+    # 9 categories defined in bronze.py - should always be exactly 9
     assert _count("SELECT COUNT(*) FROM GOLD_CATEGORY_METRICS") == 9
 
 def test_gold_segments():
@@ -61,9 +62,13 @@ def test_gold_segments():
     segs = {r[0] for r in cur.execute("SELECT DISTINCT CUSTOMER_SEGMENT FROM GOLD_CUSTOMER_SEGMENTS").fetchall()}
     cur.close()
     conn.close()
+    # with 1000 test rows at least New and Regular will always appear
+    # VIP/Premium need higher spend + frequency so not guaranteed in small samples
+    assert len(segs) >= 2
     assert segs.issubset({'VIP', 'Premium', 'Regular', 'New'})
 
 def test_gold_cities():
+    # 6 cities defined in bronze.py
     assert _count("SELECT COUNT(*) FROM GOLD_CITY_METRICS") == 6
 
 def test_gold_revenue():
