@@ -21,24 +21,23 @@ def generate_bronze(n=100_000, incremental=True):
 
     start_date = datetime(2023, 1, 1)
     order_dates = [start_date + timedelta(days=random.randint(0, 730)) for _ in range(n)]
-
     return_reason_col = [random.choice(return_reasons + [None, None, None]) for _ in range(n)]
 
     df = pd.DataFrame({
-        'ORDER_ID': [f'ORD-{i:07d}' for i in range(n)],
-        'CUSTOMER_ID': [f'CUST-{random.randint(1, 20000):06d}' for _ in range(n)],
-        'PRODUCT_ID': [f'PROD-{random.randint(1, 5000):05d}' for _ in range(n)],
-        'CATEGORY': [random.choice(categories) for _ in range(n)],
-        'ORDER_DATE': order_dates,
-        'QUANTITY': np.random.randint(1, 6, n),
-        'UNIT_PRICE': np.random.uniform(5, 500, n).round(2),
-        'DISCOUNT_PCT': np.random.randint(0, 20, n),
-        'SHIPPING_COST': np.random.uniform(2, 20, n).round(2),
+        'ORDER_ID':        [f'ORD-{i:07d}' for i in range(n)],
+        'CUSTOMER_ID':     [f'CUST-{random.randint(1, 20000):06d}' for _ in range(n)],
+        'PRODUCT_ID':      [f'PROD-{random.randint(1, 5000):05d}' for _ in range(n)],
+        'CATEGORY':        [random.choice(categories) for _ in range(n)],
+        'ORDER_DATE':      order_dates,
+        'QUANTITY':        np.random.randint(1, 6, n),
+        'UNIT_PRICE':      np.random.uniform(5, 500, n).round(2),
+        'DISCOUNT_PCT':    np.random.randint(0, 20, n),
+        'SHIPPING_COST':   np.random.uniform(2, 20, n).round(2),
         'CUSTOMER_RATING': np.random.randint(1, 6, n),
-        'PAYMENT_METHOD': [random.choice(payments) for _ in range(n)],
-        'CITY': [random.choice(cities) for _ in range(n)],
-        'STATUS': [random.choice(statuses) for _ in range(n)],
-        'RETURN_REASON': return_reason_col,
+        'PAYMENT_METHOD':  [random.choice(payments) for _ in range(n)],
+        'CITY':            [random.choice(cities) for _ in range(n)],
+        'STATUS':          [random.choice(statuses) for _ in range(n)],
+        'RETURN_REASON':   return_reason_col,
     })
 
     # snowflake wants uppercase column names by default - burned me the first time
@@ -78,7 +77,7 @@ def generate_bronze(n=100_000, incremental=True):
             print("first load, loading everything")
 
     if len(df) > 0:
-        # quote_identifiers=False is important here - without it write_pandas wraps column
+        # quote_identifiers=False is important - without it write_pandas wraps column
         # names in quotes and snowflake treats them as case-sensitive lowercase, then
         # the INSERT fails because the table has uppercase columns. took way too long to debug
         write_pandas(conn, df, 'BRONZE_ORDERS', quote_identifiers=False)
