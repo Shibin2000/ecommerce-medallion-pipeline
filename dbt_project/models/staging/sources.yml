@@ -5,7 +5,7 @@ sources:
     database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
     schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'ECOMMERCE') }}"
     tables:
-      - name: silver_orders
+      - name: SILVER_ORDERS
         description: "cleaned orders from the silver layer"
         columns:
           - name: ORDER_ID
