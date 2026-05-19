@@ -15,16 +15,15 @@ def run_checks():
             print(f"  pass - {name}")
 
     print("checking silver_orders...")
-    check("no negative prices", "SELECT COUNT(*) FROM SILVER_ORDERS WHERE UNIT_PRICE < 0")
-    check("no zero quantities", "SELECT COUNT(*) FROM SILVER_ORDERS WHERE QUANTITY = 0")
+    check("no negative prices",   "SELECT COUNT(*) FROM SILVER_ORDERS WHERE UNIT_PRICE < 0")
+    check("no zero quantities",   "SELECT COUNT(*) FROM SILVER_ORDERS WHERE QUANTITY = 0")
     check("no null customer ids", "SELECT COUNT(*) FROM SILVER_ORDERS WHERE CUSTOMER_ID IS NULL")
-    check("no cancelled orders", "SELECT COUNT(*) FROM SILVER_ORDERS WHERE STATUS = 'cancelled'")
-    check("no negative totals", "SELECT COUNT(*) FROM SILVER_ORDERS WHERE TOTAL_AMOUNT < 0")
+    check("no cancelled orders",  "SELECT COUNT(*) FROM SILVER_ORDERS WHERE STATUS = 'cancelled'")
+    check("no negative totals",   "SELECT COUNT(*) FROM SILVER_ORDERS WHERE TOTAL_AMOUNT < 0")
 
     print("checking gold tables...")
-
     n_categories = cur.execute("SELECT COUNT(DISTINCT CATEGORY) FROM SILVER_ORDERS").fetchone()[0]
-    n_cities = cur.execute("SELECT COUNT(DISTINCT CITY) FROM SILVER_ORDERS").fetchone()[0]
+    n_cities     = cur.execute("SELECT COUNT(DISTINCT CITY) FROM SILVER_ORDERS").fetchone()[0]
     check("category count matches source", "SELECT COUNT(*) FROM GOLD_CATEGORY_METRICS", expected=n_categories)
     check("4 segments exist", "SELECT COUNT(DISTINCT CUSTOMER_SEGMENT) FROM GOLD_CUSTOMER_SEGMENTS", expected=4)
     check("city count matches source", "SELECT COUNT(*) FROM GOLD_CITY_METRICS", expected=n_cities)
